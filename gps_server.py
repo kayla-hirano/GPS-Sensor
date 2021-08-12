@@ -47,11 +47,14 @@ def send_location(context):
             
             #send acceleration and gyro to client
             #TODO: calculate pitch, yaw, and roll
-            accel = "Acceleration: X:%.2f, Y: %.2f, Z: %.2f m/s^2" % (sensor.acceleration)
-            publisher.send_string(f"ACCEL {accel}")
-            print("Sent [%s] " % accel)
+            accel_x = sensor.acceleration[0]
+            accel_y = sensor.acceleration[1]
+            accel_z = sensor.acceleration[2]
+            accel = f'ACCEL {accel_x},{accel_y},{accel_z}'
+            publisher.send_string(accel)
+            print("Sent [%s] m/s^2" % accel)
             gyro = "Gyro X:%.2f, Y: %.2f, Z: %.2f radians/s" % (sensor.gyro)
-            publisher.send_string(f"GYRO {gyro}")
+            publisher.send_string(f"GYRO {sensor.gyro}")
             print("Sent [%s] " % gyro)
 
             #  wait for 5 seconds
@@ -66,6 +69,7 @@ def rand_reply(context):
         sys.exit()
     
     camera = PiCamera()
+    i = 1
     while True:
         #  Wait for next request from client
         message = replier.recv_string()
@@ -75,20 +79,23 @@ def rand_reply(context):
 
         if message == 'SNAP':
             camera.start_preview()
-            sleep(5)
+            time.sleep(3)
             #take picture
-            camera.capture('/share/test_image%s.jpg' %i)
+            image_name = f'gps_image{i}.jpg'
+            camera.capture(f'/share/{image_name}')
             camera.stop_preview()
             i = i + 1
-            to_client = 'picture'
+            #format results
+            image_details = f'AMAP_LOAD_IMG_OL:[{image_name}]:[DISPLAYWINDOW]:[LAT1]:[LONG1]:[LAT2]:[LONG2]:'
+            replier.send_string(image_details)
+            print(f'Sent {image_details}')
         elif message == 'STOP':
-            replier.send_string('STOP')
-            to_client = 'STOP'
+            replier.send_string('STOP request received')
+            print('Sent STOP to client')
         else:
             replier.send_string('INVALID')
-            to_client = 'INVALID, PLEASE ENTER A VALID COMMAND'
+            print('Sent INVALID to client')
 
-        print('Sent %s to client' % to_client)
 
 
 ### CODE ###
@@ -96,7 +103,7 @@ def rand_reply(context):
 if __name__ == '__main__':
     # Prepare our context and sockets
     context = zmq.Context()
-    i = 1
+    
 
     #threading
     t1 = threading.Thread(target=send_location, args=[context])
