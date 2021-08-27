@@ -1,9 +1,9 @@
 import time
 import threading
 import zmq
-import datetime
-import random
 import sys
+import math
+import datetime
 import serial
 import board
 from adafruit_lsm6ds.lsm6dsox import LSM6DSOX
@@ -16,42 +16,54 @@ IP = "169.254.16.177" #Ethernet
 
 ### FUNCTIONS ###
 
-def send_location(context, publisher):
-    gps = serial.Serial('/dev/serial0', 9600)
+def send_location(context, publisher, gps):
     i2c = board.I2C()  # uses board.SCL and board.SDA
     sensor = LSM6DSOX(i2c)
+    
+    #create data packet
+    packet = {
+        'date': '',
+        'latitude': '',
+        'longitude': '',
+        'accelx': '',
+        'accely': '',
+        'accelz': '',
+        'gyro': '',
+        'senspitch': '',
+        'sensroll': ''
+    }
     
     # format and send data in a loop
     while True:
         current_date = datetime.datetime.now()
-        formatted_date = current_date.strftime("%Y-%m-%d %H:%M:%S")
-
-        location_string = gps.readline().decode()
-        if location_string[:6] == '$GPRMC':
-            location_array = location_string.split(',')
-            latitude = location_array[3][:-7] + ' ' + location_array[3][-7:] + ' ' + location_array[4]
-            longitude = location_array[5][:-7] + ' ' + location_array[5][-7:] + ' ' + location_array[6]
-
-            #send location to client
-            location = f'{formatted_date},{latitude},{longitude}'
-            publisher.send_string(f"LOCATION {location}")
-            print("Sent [%s] " % location)
+        gps_results = detect_location(gps).split(',')
+        packet['date'] = current_date#f'{int(current_date[:2])}:{current_date[2:4]}.{current_date[4:6]}'
+        packet['latitude'] = gps_results[1]
+        packet['longitude'] = gps_results[2]
             
-            #send acceleration and gyro to client
-            accel_x = sensor.acceleration[0]
-            accel_y = sensor.acceleration[1]
-            accel_z = sensor.acceleration[2]
-            accel = f'{accel_x},{accel_y},{accel_z}'
-            publisher.send_string(f'ACCEL {accel}')
-            print("Sent [%s] m/s^2" % accel)
-            gyro = "Gyro X:%.2f, Y: %.2f, Z: %.2f radians/s" % (sensor.gyro)
-            publisher.send_string(f"GYRO {sensor.gyro}")
-            print("Sent [%s] " % gyro)
+        #send acceleration and gyro to client
+        packet['accelx'] = str(sensor.acceleration[0])[:6]
+        packet['accely'] = str(sensor.acceleration[1])[:6]
+        packet['accelz']  = str(sensor.acceleration[2])[:6]
+        packet['gyro'] = "Gyro X:%.2f, Y: %.2f, Z: %.2f radians/s" % (sensor.gyro)
+        
+        #calculate pitch and roll
+        accel_x = sensor.acceleration[0]
+        accel_y = sensor.acceleration[1]
+        accel_z = sensor.acceleration[2]
+        packet['senspitch'] = str(-(math.atan2(accel_x, math.sqrt(accel_y*accel_y + accel_z*accel_z))*180.0)/math.pi)[:6]
+        packet['sensroll'] = str((math.atan2(accel_y, accel_z)*180.0)/math.pi)[:6]
+        
+        #send packet
+        zmqpacket = f"DATA,{packet['date']},{packet['latitude']},{packet['longitude']},{packet['accelx']},{packet['accely']},{packet['accelz']},{packet['senspitch']},{packet['sensroll']}"
+        publisher.send_string(zmqpacket)
+        print('SENT:')
+        print(zmqpacket)
+    
+        #  wait for 5 seconds
+        time.sleep(5)
 
-            #  wait for 5 seconds
-            time.sleep(5)
-
-def rand_reply(context, replier): 
+def rand_reply(context, replier, gps): 
     camera = PiCamera()
     i = 1
     while True:
@@ -67,14 +79,9 @@ def rand_reply(context, replier):
             camera.capture(f'/share/{image_name}')
             camera.stop_preview()
             i = i + 1
-
-            #get current location
-            location_string = gps.readline().decode()
-            if location_string[:6] == '$GPRMC':
-                location_array = location_string.split(',')
-                latitude = location_array[3][:-7] + ' ' + location_array[3][-7:] + ' ' + location_array[4]
-                longitude = location_array[5][:-7] + ' ' + location_array[5][-7:] + ' ' + location_array[6]
-
+            gps_results = detect_location(gps).split(',')
+            latitude = gps_results[1]
+            longitude = gps_results[2]
             #format results
             image_details = f'AMAP_LOAD_IMG_OL:[{image_name}]:[DISPLAYWINDOW]:[{latitude}]:[{longitude}]:[LAT2]:[LONG2]:'
             replier.send_string(image_details)
@@ -86,7 +93,16 @@ def rand_reply(context, replier):
             replier.send_string('INVALID')
             print('Sent INVALID to client')
 
-
+def detect_location(gps):
+    #get current location
+    while True:
+        location_string = gps.readline().decode()
+        if location_string[:6] == '$GPRMC':
+            location_array = location_string.split(',')
+            gps_time = location_array[1]
+            latitude = location_array[3][:-7] + ' ' + location_array[3][-7:] + ' ' + location_array[4]
+            longitude = location_array[5][:-7] + ' ' + location_array[5][-7:] + ' ' + location_array[6]
+            return f'{gps_time},{latitude},{longitude}'
 
 ### CODE ###
 
@@ -103,9 +119,10 @@ if __name__ == '__main__':
             print("Can't bind sockets")
             sys.exit()
     
+        gps = serial.Serial('/dev/serial0', 9600)
         #threading
-        t1 = threading.Thread(target=send_location, args=[context, publisher])
-        t2 = threading.Thread(target=rand_reply, args=[context, replier])
+        t1 = threading.Thread(target=send_location, args=[context, publisher, gps])
+        t2 = threading.Thread(target=rand_reply, args=[context, replier, gps])
         t1.start()
         t2.start()
 
