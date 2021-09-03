@@ -1,3 +1,6 @@
+# gps client
+# Receives the sensor data from the server, organizes it into variables and saves onto an sql database
+
 import zmq
 import sys
 import threading
@@ -5,8 +8,6 @@ import time
 import sqlite3
 
 IP = '169.254.16.177' #Ethernet
-#IP = "192.168.1.10" 
-
 filter = 'LOCATION'
 
 ### FUNCTIONS ###
@@ -53,14 +54,14 @@ def append_location(context, subscriber):
         gps_time = string[1]
         AC_LAT = string[2]
         AC_LONG = string[3]
-        #string = f'[{gps_time}] LAT: {AC_LAT} LONG: {AC_LONG}' 
         accel_x = string[4]
         accel_y = string[5]
         accel_z = string[6]
         sens_pitch = string[7]
         sens_roll = string[8]
-        #string = f'[ACCEL] X:{accel_x} Y:{accel_y} Z:{accel_z} m/s^2'
 
+        #string = f'[{gps_time}] LAT: {AC_LAT} LONG: {AC_LONG}' 
+        #string = f'[ACCEL] X:{accel_x} Y:{accel_y} Z:{accel_z} m/s^2'
         #write date in text file
         #file = open('data.txt', 'a')
         #file.write(f'{string} \n')
@@ -70,11 +71,11 @@ def append_location(context, subscriber):
         entry = (id, gps_time, AC_LAT, AC_LONG, AC_yaw, ac_PITCH, ac_roll, sens_yaw, sens_roll, sens_pitch)
         cur.execute("INSERT INTO info VALUES(?,?,?,?,?,?,?,?,?,?);", entry)
         conn.commit()
+
         #print table
         #cur.execute("SELECT * FROM info;")
         #results = cur.fetchall()
         #print(results)
-        
         id += 1
         
     
@@ -100,7 +101,7 @@ def request_photo(context, requester):
     raise Exception('Requested program to stop')
 
 
-### CODE ###
+### MAIN ###
 
 if __name__ == '__main__':
     try:
