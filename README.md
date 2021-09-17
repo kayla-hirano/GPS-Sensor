@@ -9,6 +9,17 @@ gps_client
 test, test2, test3
     test files for the camera, gyrometer/accelerometer, and gps
 
+playback_server
+    reads the data from the sql database and can playback the information. 
+    Can choose a start time and the speed of playback
+
+playback_client
+    prints the data from playback_server
+
+
+---- OLDER ----
+
+
 gps_playback
     reads the data from the sql database and can playback the information. 
     Can choose a start time and the speed of playback
