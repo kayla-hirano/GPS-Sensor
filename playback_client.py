@@ -1,34 +1,51 @@
 # Receive GPS Playback
 # connects to publisher and receives data sent from gps_playback.py
 
+#IDEA: user can input either start time or speed, no need to enter both
+
 import sqlite3
 import time
 import datetime
 import zmq
 import sys
 import threading 
-from queue import Queue 
 
-### FUNCTION DEFINITIONS ###
+exitCode = 'PLAYBACK, exit'
+IP = '192.168.1.142' #"169.254.16.177" #Ethernet 
 
-#checks to see if the value entered is a number
+#################
+### FUNCTIONS ###
+#################
+
 def is_number(s):
+    """Checks to see if a value is a number
+    Input: value s
+    Returns: Boolean
+    """
     try:
         float(s)
         return True
     except ValueError:
         return False
 
-#checks to see if the value entered is a time
 def is_time(s):
+    """Checks to see if a value is in a valid time format
+    Input: value s
+    Returns: Boolean
+    """
     try:
         time.strptime(s, '%Y-%m-%d %H:%M')
         return True
     except ValueError:
         return False
 
-#ask the user for the start date and speed of playback
-def configure_playback(requester, q):
+
+def configure_playback(requester):
+    """Receives info from user about desired start time and playback speed,
+    sends the info to REP socket, then receieves the reponse
+    Input: zmq REQ socket
+    Returns: Nothing
+    """
     time_speed = 1
     #stop running if time_speed is entered as zero
     while(time_speed != 0):
@@ -55,27 +72,32 @@ def configure_playback(requester, q):
         playback_results = requester.recv_string()
         print(playback_results)
 
-    print('Exiting req')
-    #send message to sub for exit
-    q.put('exit')
+    print('Exiting req...')
 
-def display_playback(subscriber, q):
+def display_playback(subscriber):
+    """Receives database info from PUB socket and writes to playback.txt
+    Input: zmq SUB socket
+    Returns: Nothing
+    """
     #print out playback
     while True:
-        #if told to exit, exit
-        if(q.get() == 'exit'):
-            break
         string = subscriber.recv_string()
-        print(string)
+        #if told to exit, exit
+        if(string == exitCode):
+            break
+        else:
+            #write playback to a txt file for now
+            file = open('playback.txt', 'a')
+            file.write(f'{string} \n')
+            file.close()
 
-    print('Exiting sub')
+    print('Exiting sub...')
     
-
+############    
 ### MAIN ###
+############
 
 if __name__ == '__main__':
-
-    IP = '192.168.1.142' #"169.254.16.177" #Ethernet 
     #connect with zmq
     try:
         # Prepare our context and sockets
@@ -90,10 +112,9 @@ if __name__ == '__main__':
         except:
             print("Can't connect sockets")
 
-        q = Queue()
         #threading
-        t1 = threading.Thread(target=display_playback, args=[subscriber, q])
-        t2 = threading.Thread(target=configure_playback, args=[requester, q])
+        t1 = threading.Thread(target=display_playback, args=[subscriber])
+        t2 = threading.Thread(target=configure_playback, args=[requester])
         t1.start()
         t2.start()
          
