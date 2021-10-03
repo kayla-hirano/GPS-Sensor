@@ -9,8 +9,8 @@ import board
 from adafruit_lsm6ds.lsm6dsox import LSM6DSOX
 from picamera import PiCamera
 
-IP = "169.254.16.177" #Ethernet 
-#IP = "192.168.1.11" 
+IP = #Ethernet 
+
 
 #GPS = '$GPRMC,064951.000,A,2307.1256,N,12016.4438,E,0.03,165.48,260406,3.05,W,A*2C' #placeholder for actual info
 
