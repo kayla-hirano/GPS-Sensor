@@ -9,7 +9,7 @@ import sys
 import threading 
 from queue import Queue 
 
-IP = '192.168.1.142' #"169.254.16.177" #Ethernet 
+IP = #Ethernet 
 exitCode = 'PLAYBACK, exit'
 
 #################
