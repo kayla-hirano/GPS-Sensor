@@ -7,7 +7,7 @@ import threading
 import time
 import sqlite3
 
-IP = '169.254.16.177' #Ethernet
+IP = #Ethernet
 filter = 'LOCATION'
 
 ### FUNCTIONS ###
