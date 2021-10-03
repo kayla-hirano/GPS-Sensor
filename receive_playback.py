@@ -6,7 +6,7 @@ import sys
 
 if __name__ == '__main__':
 
-    IP = '192.168.1.142' #"169.254.16.177" #Ethernet 
+    IP = #Ethernet 
     #connect with zmq
     try:
         # Prepare our context and sockets
