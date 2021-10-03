@@ -11,7 +11,7 @@ import sys
 import threading 
 
 exitCode = 'PLAYBACK, exit'
-IP = '192.168.1.142' #"169.254.16.177" #Ethernet 
+IP = #Ethernet 
 
 #################
 ### FUNCTIONS ###
